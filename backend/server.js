@@ -9,14 +9,12 @@ import connectDB from './config/db.js';
 import mongoose from 'mongoose';
 import cors from 'cors';
 
-// Import routes
 import imageRoutes from './routes/imageRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import pricingRoutes from './routes/pricingRoutes.js';
 
-// Import image optimization middleware
 import imageOptimization from './middleware/imageOptimization.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,34 +24,35 @@ dotenv.config();
 
 const app = express();
 
+const allowedOrigins = [
+	'http://localhost:3000',
+	'https://mallikarjunaphotography.vercel.app',
+	'https://mallikarjunaphotography.webpoise.in',
+];
+
 app.use(
 	cors({
-		origin: 'http://localhost:3000',
+		origin: function (origin, callback) {
+			if (!origin || allowedOrigins.includes(origin)) {
+				callback(null, true);
+			} else {
+				callback(new Error('Not allowed by CORS'));
+			}
+		},
 		credentials: true,
 	}),
 );
 
-app.options(
-	'*',
-	cors({
-		origin: 'http://localhost:3000',
-		credentials: true,
-	}),
-);
+app.options('*', cors());
 
-
-// Connect to MongoDB first
 await connectDB();
 
-// Middleware
 app.use(
 	compression({
 		level: 6,
 		threshold: 1000,
 		filter: (req, res) => {
-			if (req.headers['x-no-compression']) {
-				return false;
-			}
+			if (req.headers['x-no-compression']) return false;
 			return compression.filter(req, res);
 		},
 	}),
@@ -63,11 +62,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-
-
-// Cache control middleware
 app.use((req, res, next) => {
-	// Cache static assets for 30 days
 	if (req.url.match(/\.(css|js|jpg|jpeg|png|gif|ico|woff2|svg)$/)) {
 		res.setHeader('Cache-Control', 'public, max-age=2592000');
 		res.setHeader(
@@ -78,26 +73,22 @@ app.use((req, res, next) => {
 	next();
 });
 
-// Ignore ACME challenge requests (let Nginx handle them)
-app.use('/.well-known/acme-challenge', (req, res, next) => {
+app.use('/.well-known/acme-challenge', (req, res) => {
 	res.status(404).send('Not found');
 });
 
-// Routes
 app.use('/images', imageRoutes);
 app.use('/users', userRoutes);
 app.use('/bookings', bookingRoutes);
 app.use('/reviews', reviewRoutes);
 app.use('/pricing', pricingRoutes);
 
-// Image optimization endpoint
 app.get('/image-optimize', imageOptimization.optimizeImage);
 
 app.get('/', (req, res) => {
-	res.json({ message: 'DS PHOTO API is running' });
+	res.json({ message: 'Mallikarjuna Photography API is running' });
 });
 
-// Add this after your other routes
 app.get('/debug', (req, res) => {
 	res.json({
 		message: 'Debug endpoint working',
@@ -113,18 +104,16 @@ app.get('/debug', (req, res) => {
 
 app.use('/assets', express.static(path.join(__dirname, '/assets')));
 
-// Add MongoDB connection handling
 mongoose.connection.on('disconnected', () => {
 	console.log('MongoDB disconnected! Attempting to reconnect...');
-	setTimeout(connectDB, 5000); // Try to reconnect after 5 seconds
+	setTimeout(connectDB, 5000);
 });
 
 mongoose.connection.on('error', (err) => {
 	console.error('MongoDB connection error:', err);
-	setTimeout(connectDB, 5000); // Try to reconnect after 5 seconds
+	setTimeout(connectDB, 5000);
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
 	console.error('Server Error:', {
 		message: err.message,
@@ -144,15 +133,12 @@ server.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
 });
 
-// Update the error handling at the bottom
 process.on('unhandledRejection', (err) => {
 	console.error('Unhandled Rejection:', err);
-	// Don't exit the process, just log the error
 	console.error('Process will continue running...');
 });
 
 process.on('uncaughtException', (err) => {
 	console.error('Uncaught Exception:', err);
-	// Don't exit the process, just log the error
 	console.error('Process will continue running...');
 });
