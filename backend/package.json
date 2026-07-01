@@ -35,12 +35,12 @@
 		"streamifier": "^0.1.1"
 	},
 	"scripts": {
-		"start": "node scripts/start.sh",
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"reset-password": "node scripts/resetAdminPassword.js",
-		"build": "echo 'No build step needed for backend'",
-		"create-second-admin": "node scripts/createSecondAdmin.js"
-	},
+  "start": "node server.js",
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "reset-password": "node scripts/resetAdminPassword.js",
+  "build": "echo 'No build step needed for backend'",
+  "create-second-admin": "node scripts/createSecondAdmin.js"
+},
 	"keywords": [],
 	"author": "",
 	"license": "ISC"

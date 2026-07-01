@@ -140,8 +140,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 8000;
 const server = http.createServer(app);
 
-server.listen(PORT, '127.0.0.1', () => {
-	console.log(`Server running on localhost:${PORT}`);
+server.listen(PORT, () => {
+	console.log(`Server running on port ${PORT}`);
 });
 
 // Update the error handling at the bottom
