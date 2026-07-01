@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { API } from '../api';
+import { API, getConnectionStatus, diagnoseBrokenConnections } from '../api';
 import LoadingSpinner from './LoadingSpinner';
-import {
-	getConnectionStatus,
-	fetchImagesWithCache,
-	diagnoseBrokenConnections,
-} from '../api';
 import ImageOptimizer from './ImageOptimizer';
 
 const FALLBACK_GALLERY_DATA = [
@@ -54,13 +49,17 @@ const GallerySections = () => {
 	const [error, setError] = useState(null);
 	const [retryCount, setRetryCount] = useState(0);
 	const [usingFallbackData, setUsingFallbackData] = useState(false);
-	const [connectionStatus, setConnectionStatus] = useState(getConnectionStatus());
+	const [connectionStatus, setConnectionStatus] = useState(
+		getConnectionStatus(),
+	);
 	const [diagnosticResults, setDiagnosticResults] = useState(null);
 	const [runningDiagnostics, setRunningDiagnostics] = useState(false);
+
 	const MAX_RETRIES = 3;
 
 	const runDiagnostics = async () => {
 		setRunningDiagnostics(true);
+
 		try {
 			const results = await diagnoseBrokenConnections();
 			setDiagnosticResults(results);
@@ -86,7 +85,7 @@ const GallerySections = () => {
 				setError(null);
 
 				const response = await API.get('/images');
-const data = response.data;
+				const data = response.data;
 
 				if (!Array.isArray(data)) {
 					throw new Error('Invalid data format received from API');
@@ -116,7 +115,6 @@ const data = response.data;
 					.sort((a, b) => a.title.localeCompare(b.title));
 
 				setGalleryData(formattedData);
-				setLoading(false);
 				setUsingFallbackData(false);
 			} catch (error) {
 				console.error('Error fetching gallery data:', error);
@@ -133,7 +131,6 @@ const data = response.data;
 				if ((is502Error || isNetworkError) && retryCount >= 1) {
 					setGalleryData(FALLBACK_GALLERY_DATA);
 					setUsingFallbackData(true);
-					setLoading(false);
 					return;
 				}
 
@@ -142,24 +139,25 @@ const data = response.data;
 				if (isOfflineMode) {
 					setGalleryData(FALLBACK_GALLERY_DATA);
 					setUsingFallbackData(true);
-					setLoading(false);
 					return;
 				}
 
 				if (retryCount < MAX_RETRIES) {
 					setRetryCount((prev) => prev + 1);
-					setTimeout(() => {
-						fetchGalleryData();
-					}, 2000 * (retryCount + 1));
-				} else {
-					setGalleryData(FALLBACK_GALLERY_DATA);
-					setUsingFallbackData(true);
-					setLoading(false);
+					return;
 				}
+
+				setGalleryData(FALLBACK_GALLERY_DATA);
+				setUsingFallbackData(true);
+			} finally {
+				setLoading(false);
 			}
 		};
 
-		fetchGalleryData();
+		const retryDelay = retryCount > 0 ? 2000 * retryCount : 0;
+		const timer = setTimeout(fetchGalleryData, retryDelay);
+
+		return () => clearTimeout(timer);
 	}, [retryCount]);
 
 	const renderDiagnosticResults = () => {
@@ -167,9 +165,10 @@ const data = response.data;
 
 		return (
 			<div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm">
-				<h3 className="font-bold mb-2">AWS Service Diagnostics:</h3>
+				<h3 className="font-bold mb-2">Service Diagnostics:</h3>
+
 				<ul className="list-disc pl-5 mb-3">
-					{Object.entries(diagnosticResults.results).map(
+					{Object.entries(diagnosticResults.results || {}).map(
 						([service, info]) => (
 							<li
 								key={service}
@@ -187,7 +186,7 @@ const data = response.data;
 					)}
 				</ul>
 
-				{diagnosticResults.recommendations.length > 0 && (
+				{diagnosticResults.recommendations?.length > 0 && (
 					<>
 						<h3 className="font-bold mb-2">Recommendations:</h3>
 						<ul className="list-disc pl-5">
@@ -240,7 +239,7 @@ const data = response.data;
 						>
 							{runningDiagnostics
 								? 'Running Diagnostics...'
-								: 'Run AWS Diagnostics'}
+								: 'Run Diagnostics'}
 						</button>
 					</div>
 
